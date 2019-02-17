@@ -1,34 +1,44 @@
 <template>
     <transition :name="animation">
-        <div class="modal is-active" v-if="isActive">
-            <div class="modal-background" @click="cancel('outside')"></div>
-            <div class="animation-content"
+        <div v-if="isActive" class="modal is-active">
+            <div class="modal-background" @click="cancel('outside')"/>
+            <div
+                class="animation-content"
                 :class="{ 'modal-content': !hasModalCard }"
                 :style="{ maxWidth: newWidth }">
-                <component v-if="component"
+                <component
+                    v-if="component"
                     v-bind="props"
+                    v-on="events"
                     :is="component"
-                    @close="close">
-                </component>
-                <div v-else-if="content" v-html="content"></div>
-                <slot v-else></slot>
+                    @close="close"/>
+                <div
+                    v-else-if="content"
+                    v-html="content"/>
+                <slot v-else/>
             </div>
-            <button v-if="showX" class="modal-close is-large" @click="cancel('x')"></button>
+            <button
+                type="button"
+                v-if="showX"
+                class="modal-close is-large"
+                @click="cancel('x')"/>
         </div>
     </transition>
 </template>
 
 <script>
     import { removeElement } from '../../utils/helpers'
+    import config from '../../utils/config'
 
     export default {
-        name: 'bModal',
+        name: 'BModal',
         props: {
             active: Boolean,
             component: [Object, Function],
             content: String,
             programmatic: Boolean,
             props: Object,
+            events: Object,
             width: {
                 type: [String, Number],
                 default: 960
@@ -40,16 +50,31 @@
             },
             canCancel: {
                 type: [Array, Boolean],
-                default: () => ['escape', 'x', 'outside']
+                default: () => ['escape', 'x', 'outside', 'button']
             },
             onCancel: {
                 type: Function,
                 default: () => {}
+            },
+            scroll: {
+                type: String,
+                default: () => {
+                    return config.defaultModalScroll
+                        ? config.defaultModalScroll
+                        : 'clip'
+                },
+                validator: (value) => {
+                    return [
+                        'clip',
+                        'keep'
+                    ].indexOf(value) >= 0
+                }
             }
         },
         data() {
             return {
                 isActive: this.active || false,
+                savedScrollTop: null,
                 newWidth: typeof this.width === 'number'
                     ? this.width + 'px'
                     : this.width
@@ -59,7 +84,7 @@
             cancelOptions() {
                 return typeof this.canCancel === 'boolean'
                     ? this.canCancel
-                        ? ['escape', 'x', 'outside']
+                        ? ['escape', 'x', 'outside', 'button']
                         : []
                     : this.canCancel
             },
@@ -72,19 +97,49 @@
                 this.isActive = value
             },
             isActive() {
-                if (typeof window !== 'undefined') {
-                    const action = this.isActive ? 'add' : 'remove'
-                    document.documentElement.classList[action]('is-clipped')
-                }
+                this.handleScroll()
             }
         },
         methods: {
+            handleScroll() {
+                if (typeof window === 'undefined') return
+
+                if (this.scroll === 'clip') {
+                    if (this.isActive) {
+                        document.documentElement.classList.add('is-clipped')
+                    } else {
+                        document.documentElement.classList.remove('is-clipped')
+                    }
+                    return
+                }
+
+                this.savedScrollTop = !this.savedScrollTop
+                    ? document.documentElement.scrollTop
+                    : this.savedScrollTop
+
+                if (this.isActive) {
+                    document.body.classList.add('is-noscroll')
+                } else {
+                    document.body.classList.remove('is-noscroll')
+                }
+
+                if (this.isActive) {
+                    document.body.style.top = `-${this.savedScrollTop}px`
+                    return
+                }
+
+                document.documentElement.scrollTop = this.savedScrollTop
+                document.body.style.top = null
+                this.savedScrollTop = null
+            },
+
             /**
-             * Close the Modal if canCancel.
+             * Close the Modal if canCancel and call the onCancel prop (function).
              */
             cancel(method) {
                 if (this.cancelOptions.indexOf(method) < 0) return
 
+                this.onCancel.apply(null, arguments)
                 this.close()
             },
 
@@ -93,7 +148,6 @@
              * Emit events, and destroy modal if it's programmatic.
              */
             close() {
-                this.onCancel.apply(null, arguments)
                 this.$emit('close')
                 this.$emit('update:active', false)
 
@@ -112,7 +166,7 @@
              */
             keyPress(event) {
                 // Esc key
-                if (event.keyCode === 27) this.cancel('escape')
+                if (this.isActive && event.keyCode === 27) this.cancel('escape')
             }
         },
         created() {
@@ -127,10 +181,19 @@
         },
         mounted() {
             if (this.programmatic) this.isActive = true
+            else if (this.isActive) this.handleScroll()
         },
         beforeDestroy() {
             if (typeof window !== 'undefined') {
                 document.removeEventListener('keyup', this.keyPress)
+                // reset scroll
+                document.documentElement.classList.remove('is-clipped')
+                const savedScrollTop = !this.savedScrollTop
+                    ? document.documentElement.scrollTop
+                    : this.savedScrollTop
+                document.body.classList.remove('is-noscroll')
+                document.documentElement.scrollTop = savedScrollTop
+                document.body.style.top = null
             }
         }
     }

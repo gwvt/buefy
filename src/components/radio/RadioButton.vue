@@ -1,13 +1,15 @@
 <template>
     <div class="control">
-        <label class="b-radio radio button"
+        <label
+            class="b-radio radio button"
             ref="label"
             :class="[newValue === nativeValue ? type : null, size]"
             :disabled="disabled"
             :tabindex="disabled ? false : 0"
             @keydown.prevent.enter.space="$refs.label.click()">
-            <slot></slot>
-            <input v-model="newValue"
+            <slot/>
+            <input
+                v-model="computedValue"
                 type="radio"
                 :disabled="disabled"
                 :name="name"
@@ -18,10 +20,10 @@
 
 <script>
     export default {
-        name: 'bRadioButton',
+        name: 'BRadioButton',
         props: {
-            value: {},
-            nativeValue: {},
+            value: [String, Number, Boolean, Function, Object, Array, Symbol],
+            nativeValue: [String, Number, Boolean, Function, Object, Array, Symbol],
             type: {
                 type: String,
                 default: 'is-primary'
@@ -35,23 +37,23 @@
                 newValue: this.value
             }
         },
+        computed: {
+            computedValue: {
+                get() {
+                    return this.newValue
+                },
+                set(value) {
+                    this.newValue = value
+                    this.$emit('input', value)
+                }
+            }
+        },
         watch: {
             /**
              * When v-model change, set internal value.
              */
             value(value) {
                 this.newValue = value
-            },
-
-            /**
-             * Emit input event to update the user v-model.
-             */
-            newValue(value) {
-                // only trigger input event
-                // when current bRadioButton is clicked.
-                if (value === this.nativeValue) {
-                    this.$emit('input', value)
-                }
             }
         }
     }

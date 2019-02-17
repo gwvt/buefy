@@ -1,15 +1,11 @@
 <template>
-    <div class="control"
+    <div
+        class="control"
         :class="{ 'is-expanded': expanded, 'has-icons-left': icon }">
-        <span class="select"
-            :class="[size, statusType, {
-                'is-fullwidth': expanded,
-                'is-loading': loading,
-                'is-multiple': multiple,
-                'is-empty': selected === null
-            }]">
+        <span class="select" :class="spanClasses">
 
-            <select v-model="selected"
+            <select
+                v-model="computedValue"
                 ref="select"
                 :multiple="multiple"
                 :size="nativeSize"
@@ -17,35 +13,41 @@
                 @blur="$emit('blur', $event) && checkHtml5Validity()"
                 @focus="$emit('focus', $event)">
 
-                <option
-                    v-if="placeholder"
-                    :value="null"
-                    selected
-                    disabled
-                    hidden>
-                    {{ placeholder }}
-                </option>
-                <slot></slot>
+                <template v-if="placeholder">
+                    <option
+                        v-if="computedValue == null"
+                        :value="null"
+                        selected
+                        disabled
+                        hidden>
+                        {{ placeholder }}
+                    </option>
+                </template>
+                <slot/>
 
             </select>
         </span>
 
-        <b-icon v-if="icon"
+        <b-icon
+            v-if="icon"
             class="is-left"
             :icon="icon"
             :pack="iconPack"
-            :size="size">
-        </b-icon>
+            :size="iconSize"/>
     </div>
 </template>
 
 <script>
+    import Icon from '../icon/Icon'
     import FormElementMixin from '../../utils/FormElementMixin'
 
     export default {
-        name: 'bSelect',
-        inheritAttrs: false,
+        name: 'BSelect',
+        components: {
+            [Icon.name]: Icon
+        },
         mixins: [FormElementMixin],
+        inheritAttrs: false,
         props: {
             value: {
                 type: [String, Number, Boolean, Object, Array, Symbol, Function],
@@ -58,8 +60,28 @@
         data() {
             return {
                 selected: this.value,
-                _isSelect: true,
                 _elementRef: 'select'
+            }
+        },
+        computed: {
+            computedValue: {
+                get() {
+                    return this.selected
+                },
+                set(value) {
+                    this.selected = value
+                    this.$emit('input', value)
+                    !this.isValid && this.checkHtml5Validity()
+                }
+            },
+            spanClasses() {
+                return [this.size, this.statusType, {
+                    'is-fullwidth': this.expanded,
+                    'is-loading': this.loading,
+                    'is-multiple': this.multiple,
+                    'is-rounded': this.rounded,
+                    'is-empty': this.selected === null
+                }]
             }
         },
         watch: {
@@ -70,16 +92,6 @@
              */
             value(value) {
                 this.selected = value
-                !this.isValid && this.checkHtml5Validity()
-            },
-
-            /**
-             * When selected:
-             *   1. Emit input event to update the user v-model.
-             *   3. If it's invalid, validate again.
-             */
-            selected(value) {
-                this.$emit('input', value)
                 !this.isValid && this.checkHtml5Validity()
             }
         }

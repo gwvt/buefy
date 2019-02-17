@@ -1,40 +1,44 @@
+// Bulma vars
 @import "~bulma/sass/utilities/_all";
-@import "../src/scss/utils/_theme-variables";
 
-// Colors
-$primary-invert: findColorInvert($primary);
-$twitter: #4099FF;
-$twitter-invert: findColorInvert($twitter);
-$facebook: #4267B2;
-$facebook-invert: findColorInvert($facebook);
-$googleplus: #DB4437;
-$googleplus-invert: findColorInvert($googleplus);
-$bulma: #00D1B2;
-$bulma-invert: findColorInvert($bulma);
+// Buefy vars
+@import "../../../src/scss/utils/_all";
 
-$colors: (
-    "white": ($white, $black),
-    "black": ($black, $white),
-    "light": ($light, $light-invert),
-    "grey": ($grey, $light-invert),
-    "dark": ($dark, $dark-invert),
-    "primary": ($primary, $primary-invert),
-    "info": ($info, $info-invert),
-    "success": ($success, $success-invert),
-    "warning": ($warning, $warning-invert),
-    "danger": ($danger, $danger-invert),
-    "twitter": ($twitter, $twitter-invert),
-    "facebook": ($facebook, $facebook-invert),
-    "googleplus": ($googleplus, $googleplus-invert),
-    "bulma": ($bulma, $bulma-invert)
-);
+// Docs variables
+@import "_variables";
 
-$link: $primary;
-$link-invert: $primary-invert;
-$link-visited: $grey;
-$link-focus-border: $primary;
+// Docs elements / components
+@import "_apiview";
+@import "_codeview";
+@import "_example";
+@import "_generic";
+@import "_navbar";
+@import "_header";
+@import "_footer";
+@import "_home";
+@import "_sidebar";
+@import "_templates";
 
+// Bulma
 @import "~bulma";
+
+// Buefy
 @import "../../../src/scss/buefy";
 
+// Highlight.js
 @import "~highlight.js/styles/atelier-cave-light.css";
+
+// MDI
+$mdi-font-path: "~@mdi/font/fonts";
+@import "~@mdi/font/scss/materialdesignicons";
+
+// FontAwesome
+// $fa-font-path: "~font-awesome/fonts";
+// @import "~font-awesome/scss/font-awesome";
+
+// FontAwesome 5
+$fa-font-path: "~@fortawesome/fontawesome-free/webfonts";
+@import "~@fortawesome/fontawesome-free/scss/fontawesome";
+@import "~@fortawesome/fontawesome-free/scss/regular";
+@import "~@fortawesome/fontawesome-free/scss/solid";
+@import "~@fortawesome/fontawesome-free/scss/brands";

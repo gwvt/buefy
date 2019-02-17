@@ -1,15 +1,15 @@
 <template>
-    <span 
+    <span
         :data-label="label"
         :class="[newType, position, size, {
-            'tooltip': active,
+            'b-tooltip': active,
             'is-square': square,
             'is-animated': newAnimated,
             'is-always': always,
             'is-multiline': multilined,
             'is-dashed': dashed
-        }]">
-        <slot></slot>
+    }]">
+        <slot/>
     </span>
 </template>
 
@@ -17,7 +17,7 @@
     import config from '../../utils/config'
 
     export default {
-        name: 'bTooltip',
+        name: 'BTooltip',
         props: {
             active: {
                 type: Boolean,
@@ -47,10 +47,12 @@
                 default: 'is-medium'
             }
         },
-        data() {
-            return {
-                newType: this.type || config.defaultTooltipType,
-                newAnimated: this.animated || config.defaultTooltipAnimated
+        computed: {
+            newType() {
+                return this.type || config.defaultTooltipType
+            },
+            newAnimated() {
+                return this.animated || config.defaultTooltipAnimated
             }
         }
     }

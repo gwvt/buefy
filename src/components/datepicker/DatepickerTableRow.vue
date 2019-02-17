@@ -1,9 +1,10 @@
 <template>
     <div class="datepicker-row">
         <template v-for="(day, index) in week">
-            <a v-if="selectableDate(day) && !disabled"
+            <a
+                v-if="selectableDate(day) && !disabled"
                 :key="index"
-                :class="classObject(day)"
+                :class="[classObject(day), {'has-event':eventsDateMatch(day)}, indicators]"
                 class="datepicker-cell"
                 role="button"
                 href="#"
@@ -12,8 +13,18 @@
                 @keydown.enter.prevent="emitChosenDate(day)"
                 @keydown.space.prevent="emitChosenDate(day)">
                 {{ day.getDate() }}
+
+                <div class="events" v-if="eventsDateMatch(day)">
+                    <div
+                        class="event"
+                        :class="event.type"
+                        v-for="(event, index) in eventsDateMatch(day)"
+                        :key="index"/>
+                </div>
+
             </a>
-            <div v-else
+            <div
+                v-else
                 :key="index"
                 :class="classObject(day)"
                 class="datepicker-cell">
@@ -25,7 +36,7 @@
 
 <script>
     export default {
-        name: 'bDatepickerTableRow',
+        name: 'BDatepickerTableRow',
         props: {
             selectedDate: Date,
             week: {
@@ -38,7 +49,13 @@
             },
             minDate: Date,
             maxDate: Date,
-            disabled: Boolean
+            disabled: Boolean,
+            unselectableDates: Array,
+            unselectableDaysOfWeek: Array,
+            selectableDates: Array,
+            events: Array,
+            indicators: String,
+            dateCreator: Function
         },
         methods: {
             /*
@@ -58,6 +75,37 @@
 
                 validity.push(day.getMonth() === this.month)
 
+                if (this.selectableDates) {
+                    for (let i = 0; i < this.selectableDates.length; i++) {
+                        const enabledDate = this.selectableDates[i]
+                        if (day.getDate() === enabledDate.getDate() &&
+                            day.getFullYear() === enabledDate.getFullYear() &&
+                            day.getMonth() === enabledDate.getMonth()) {
+                            return true
+                        } else {
+                            validity.push(false)
+                        }
+                    }
+                }
+
+                if (this.unselectableDates) {
+                    for (let i = 0; i < this.unselectableDates.length; i++) {
+                        const disabledDate = this.unselectableDates[i]
+                        validity.push(
+                            day.getDate() !== disabledDate.getDate() ||
+                            day.getFullYear() !== disabledDate.getFullYear() ||
+                            day.getMonth() !== disabledDate.getMonth()
+                        )
+                    }
+                }
+
+                if (this.unselectableDaysOfWeek) {
+                    for (let i = 0; i < this.unselectableDaysOfWeek.length; i++) {
+                        const dayOfWeek = this.unselectableDaysOfWeek[i]
+                        validity.push(day.getDay() !== dayOfWeek)
+                    }
+                }
+
                 return validity.indexOf(false) < 0
             },
 
@@ -70,6 +118,24 @@
                 if (this.selectableDate(day)) {
                     this.$emit('select', day)
                 }
+            },
+
+            eventsDateMatch(day) {
+                if (!this.events.length) return false
+
+                const dayEvents = []
+
+                for (let i = 0; i < this.events.length; i++) {
+                    if (this.events[i].date.getDay() === day.getDay()) {
+                        dayEvents.push(this.events[i])
+                    }
+                }
+
+                if (!dayEvents.length) {
+                    return false
+                }
+
+                return dayEvents
             },
 
             /*
@@ -89,7 +155,7 @@
 
                 return {
                     'is-selected': dateMatch(day, this.selectedDate),
-                    'is-today': dateMatch(day, new Date()),
+                    'is-today': dateMatch(day, this.dateCreator()),
                     'is-selectable': this.selectableDate(day) && !this.disabled,
                     'is-unselectable': !this.selectableDate(day) || this.disabled
                 }

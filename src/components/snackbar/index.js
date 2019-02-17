@@ -1,9 +1,12 @@
 import Vue from 'vue'
 import Snackbar from './Snackbar'
 
-export default {
+import { use, registerComponentProgrammatic } from '../../utils/plugins'
+
+const SnackbarProgrammatic = {
     open(params) {
         let message
+        let parent
         if (typeof params === 'string') message = params
 
         const defaultParam = {
@@ -11,12 +14,32 @@ export default {
             position: 'is-bottom-right',
             message
         }
+        if (params.parent) {
+            parent = params.parent
+            delete params.parent
+        }
         const propsData = Object.assign(defaultParam, params)
 
-        const SnackbarComponent = Vue.extend(Snackbar)
+        const vm = typeof window !== 'undefined' && window.Vue ? window.Vue : Vue
+        const SnackbarComponent = vm.extend(Snackbar)
         return new SnackbarComponent({
+            parent,
             el: document.createElement('div'),
             propsData
         })
     }
+}
+
+const Plugin = {
+    install(Vue) {
+        registerComponentProgrammatic(Vue, '$snackbar', SnackbarProgrammatic)
+    }
+}
+
+use(Plugin)
+
+export default Plugin
+
+export {
+    SnackbarProgrammatic as Snackbar
 }

@@ -1,54 +1,83 @@
 <template>
-    <div class="field" :class="[fieldType, newPosition, {
-        'is-expanded': expanded,
-        'is-grouped-multiline': groupMultiline
-    }]">
-        <label class="label" :for="labelFor" v-if="label">{{ label }}</label>
-        <slot></slot>
-        <p class="help" :class="newType" v-if="newMessage" v-html="formattedMessage"></p>
+    <div class="field" :class="[rootClasses, fieldType()]">
+        <div
+            v-if="horizontal"
+            class="field-label"
+            :class="[customClass, fieldLabelSize]">
+            <label
+                v-if="label"
+                :for="labelFor"
+                class="label" >
+                {{ label }}
+            </label>
+        </div>
+        <template v-else>
+            <label
+                v-if="label"
+                :for="labelFor"
+                :class="customClass"
+                class="label">
+                {{ label }}
+            </label>
+        </template>
+        <b-field-body
+            v-if="horizontal"
+            :message="newMessage ? formattedMessage : ''"
+            :type="newType">
+            <slot/>
+        </b-field-body>
+        <template v-else>
+            <slot/>
+        </template>
+        <p
+            v-if="newMessage && !horizontal"
+            v-html="formattedMessage"
+            class="help"
+            :class="newType"
+        />
     </div>
 </template>
 
 <script>
+    import FieldBody from './FieldBody'
+
     export default {
-        name: 'bField',
+        name: 'BField',
+        components: {
+            [FieldBody.name]: FieldBody
+        },
         props: {
-            type: String,
+            type: [String, Object],
             label: String,
             labelFor: String,
-            message: [String, Array],
+            message: [String, Array, Object],
             grouped: Boolean,
             groupMultiline: Boolean,
             position: String,
             expanded: Boolean,
+            horizontal: Boolean,
             addons: {
                 type: Boolean,
                 default: true
-            }
+            },
+            customClass: String
         },
         data() {
             return {
                 newType: this.type,
                 newMessage: this.message,
+                fieldLabelSize: null,
                 _isField: true // Used internally by Input and Select
             }
         },
-        watch: {
-            /**
-             * Set internal type when prop change.
-             */
-            type(value) {
-                this.newType = value
-            },
-
-            /**
-             * Set internal message when prop change.
-             */
-            message(value) {
-                this.newMessage = value
-            }
-        },
         computed: {
+            rootClasses() {
+                return [this.newPosition, {
+                    'is-expanded': this.expanded,
+                    'is-grouped-multiline': this.groupMultiline,
+                    'is-horizontal': this.horizontal
+                }]
+            },
             /**
              * Correct Bulma class for the side of the addon or group.
              *
@@ -68,40 +97,86 @@
 
                 if (this.position) return prefix + position[1]
             },
-
-            /**
-             * Field has addons if there are more than one slot
-             * (element / component) in the Field.
-             * Or is grouped when prop is set.
-             */
-
-            fieldType() {
-                if (this.grouped) {
-                    return 'is-grouped'
-                } else if (this.$slots.default !== undefined && this.$slots.default.length > 1 && this.addons) {
-                    return 'has-addons'
-                }
-            },
-
             /**
              * Formatted message in case it's an array
              * (each element is separated by <br> tag)
              */
             formattedMessage() {
-                if (this.newMessage) {
-                    if (Array.isArray(this.newMessage)) {
-                        return this.newMessage.filter((value) => {
-                            if (value) {
-                                return value
-                            }
-                        }).join(' <br> ')
-                    } else {
-                        return this.newMessage
-                    }
-                } else {
+                if (typeof this.newMessage === 'string') {
                     return this.newMessage
+                } else {
+                    let messages = []
+                    if (Array.isArray(this.newMessage)) {
+                        this.newMessage.forEach((message) => {
+                            if (typeof message === 'string') {
+                                messages.push(message)
+                            } else {
+                                for (let key in message) {
+                                    if (message[key]) {
+                                        messages.push(key)
+                                    }
+                                }
+                            }
+                        })
+                    } else {
+                        for (let key in this.newMessage) {
+                            if (this.newMessage[key]) {
+                                messages.push(key)
+                            }
+                        }
+                    }
+                    return messages.filter((m) => { if (m) return m }).join(' <br> ')
+                }
+            }
+        },
+        watch: {
+            /**
+             * Set internal type when prop change.
+             */
+            type(value) {
+                this.newType = value
+            },
+
+            /**
+             * Set internal message when prop change.
+             */
+            message(value) {
+                this.newMessage = value
+            }
+        },
+        methods: {
+            /**
+             * Field has addons if there are more than one slot
+             * (element / component) in the Field.
+             * Or is grouped when prop is set.
+             * Is a method to be called when component re-render.
+             */
+            fieldType() {
+                if (this.grouped) return 'is-grouped'
+
+                let renderedNode = 0
+                if (this.$slots.default) {
+                    renderedNode = this.$slots.default
+                                        .reduce((i, node) => node.tag ? i + 1 : i, 0)
+                }
+                if (
+                    renderedNode > 1 &&
+                    this.addons &&
+                    !this.horizontal
+                ) {
+                    return 'has-addons'
+                }
+            }
+        },
+        mounted() {
+            if (this.horizontal) {
+                // Bulma docs: .is-normal for any .input or .button
+                const elements = this.$el.querySelectorAll('.input, .select, .button, .textarea')
+                if (elements.length > 0) {
+                    this.fieldLabelSize = 'is-normal'
                 }
             }
         }
     }
+
 </script>

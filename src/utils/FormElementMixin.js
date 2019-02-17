@@ -1,18 +1,26 @@
+import config from '../utils/config'
+
 export default {
     props: {
         size: String,
         expanded: Boolean,
         loading: Boolean,
+        rounded: Boolean,
         icon: String,
         iconPack: String,
-
         // Native options to use in HTML5 validation
         autocomplete: String,
-        maxlength: [Number, String]
+        maxlength: [Number, String],
+        useHtml5Validation: {
+            type: Boolean,
+            default: () => config.defaultUseHtml5Validation
+        }
     },
     data() {
         return {
-            isValid: true
+            isValid: true,
+            isFocused: false,
+            newIconPack: this.iconPack || config.defaultIconPack
         }
     },
     computed: {
@@ -20,14 +28,6 @@ export default {
          * Find parent Field, max 3 levels deep.
          */
         parentField() {
-            // return this.$parent.$data._isField
-            //     ? this.$parent
-            //     : this.$parent.$data._isAutocomplete && this.$parent.$parent.$data._isField
-            //         ? this.$parent.$parent
-            //         : this.$parent.$data._isDatepicker && this.$parent.$parent.$parent.$data._isField
-            //             ? this.$parent.$parent.$parent
-            //             : null
-
             let parent = this.$parent
             for (let i = 0; i < 3; i++) {
                 if (parent && !parent.$data._isField) {
@@ -42,8 +42,38 @@ export default {
          */
         statusType() {
             if (!this.parentField) return
+            if (!this.parentField.newType) return
+            if (typeof this.parentField.newType === 'string') {
+                return this.parentField.newType
+            } else {
+                for (let key in this.parentField.newType) {
+                    if (this.parentField.newType[key]) {
+                        return key
+                    }
+                }
+            }
+        },
 
-            return this.parentField.newType
+        /**
+         * Get the message prop from parent if it's a Field.
+         */
+        statusMessage() {
+            if (!this.parentField) return
+
+            return this.parentField.newMessage
+        },
+
+        /**
+         * Fix icon size for inputs, large was too big
+         */
+        iconSize() {
+            switch (this.size) {
+                case 'is-small': return this.size
+                case 'is-medium': return
+                case 'is-large': return this.newIconPack === 'mdi'
+                    ? 'is-medium'
+                    : ''
+            }
         }
     },
     methods: {
@@ -51,13 +81,20 @@ export default {
          * Focus method that work dynamically depending on the component.
          */
         focus() {
-            if (this.$refs[this.$data._elementRef] === undefined) return
+            if (this.$data._elementRef === undefined) return
 
-            if (!this.$data._isSelect && !this.$data._isAutocomplete && !this.$data._isDatepicker) {
-                this.$nextTick(() => this.$refs[this.$data._elementRef].select())
-            } else {
-                this.$nextTick(() => this.$refs[this.$data._elementRef].focus())
-            }
+            this.$nextTick(() => this.$el.querySelector(this.$data._elementRef).focus())
+        },
+
+        onBlur($event) {
+            this.isFocused = false
+            this.$emit('blur', $event)
+            this.checkHtml5Validity()
+        },
+
+        onFocus($event) {
+            this.isFocused = true
+            this.$emit('focus', $event)
         },
 
         /**
@@ -66,11 +103,11 @@ export default {
          * and error message to parent if it's a Field.
          */
         checkHtml5Validity() {
+            if (!this.useHtml5Validation) return
+
             if (this.$refs[this.$data._elementRef] === undefined) return
 
-            const el = this.$data._isAutocomplete || this.$data._isDatepicker
-                ? this.$refs.input.$refs.input
-                : this.$refs[this.$data._elementRef]
+            const el = this.$el.querySelector(this.$data._elementRef)
 
             let type = null
             let message = null
@@ -82,16 +119,18 @@ export default {
             }
             this.isValid = isValid
 
-            if (this.parentField) {
-                // Set type only if not defined
-                if (!this.parentField.type) {
-                    this.parentField.newType = type
+            this.$nextTick(() => {
+                if (this.parentField) {
+                    // Set type only if not defined
+                    if (!this.parentField.type) {
+                        this.parentField.newType = type
+                    }
+                    // Set message only if not defined
+                    if (!this.parentField.message) {
+                        this.parentField.newMessage = message
+                    }
                 }
-                // Set message only if not defined
-                if (!this.parentField.message) {
-                    this.parentField.newMessage = message
-                }
-            }
+            })
 
             return this.isValid
         }

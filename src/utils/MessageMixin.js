@@ -1,4 +1,4 @@
-import Icon from '../components/icon'
+import Icon from '../components/icon/Icon'
 
 export default {
     components: {
@@ -16,7 +16,17 @@ export default {
         },
         type: String,
         hasIcon: Boolean,
-        size: String
+        size: String,
+        iconPack: String,
+        iconSize: String,
+        autoClose: {
+            type: Boolean,
+            default: false
+        },
+        duration: {
+            type: Number,
+            default: 5000
+        }
     },
     data() {
         return {
@@ -26,6 +36,15 @@ export default {
     watch: {
         active(value) {
             this.isActive = value
+        },
+        isActive(value) {
+            if (value) {
+                this.setAutoClose()
+            } else {
+                if (this.timer) {
+                    clearTimeout(this.timer)
+                }
+            }
         }
     },
     computed: {
@@ -35,13 +54,13 @@ export default {
         icon() {
             switch (this.type) {
                 case 'is-info':
-                    return 'info'
+                    return 'information'
                 case 'is-success':
-                    return 'check_circle'
+                    return 'check-circle'
                 case 'is-warning':
-                    return 'warning'
+                    return 'alert'
                 case 'is-danger':
-                    return 'error'
+                    return 'alert-circle'
                 default:
                     return null
             }
@@ -55,6 +74,21 @@ export default {
             this.isActive = false
             this.$emit('close')
             this.$emit('update:active', false)
+        },
+        /**
+         * Set timer to auto close message
+         */
+        setAutoClose() {
+            if (this.autoClose) {
+                this.timer = setTimeout(() => {
+                    if (this.isActive) {
+                        this.close()
+                    }
+                }, this.duration)
+            }
         }
+    },
+    mounted() {
+        this.setAutoClose()
     }
 }

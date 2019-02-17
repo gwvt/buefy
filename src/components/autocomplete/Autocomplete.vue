@@ -1,45 +1,57 @@
 <template>
-    <div class="autocomplete control" :class="{size, 'is-expanded': expanded}">
-        <b-input v-model="newValue"
+    <div class="autocomplete control" :class="{'is-expanded': expanded}">
+        <b-input
+            v-model="newValue"
             ref="input"
             :size="size"
             :loading="loading"
+            :rounded="rounded"
             :icon="icon"
             :icon-pack="iconPack"
             :maxlength="maxlength"
             autocomplete="off"
             v-bind="$attrs"
             @focus="focused"
-            @blur="$emit('blur', $event)"
+            @blur="onBlur"
             @keyup.native.esc.prevent="isActive = false"
             @keydown.native.tab="tabPressed"
             @keydown.native.enter.prevent="enterPressed"
             @keydown.native.up.prevent="keyArrows('up')"
-            @keydown.native.down.prevent="keyArrows('down')">
-        </b-input>
+            @keydown.native.down.prevent="keyArrows('down')"
+        />
 
         <transition name="fade">
-            <div class="dropdown-menu"
+            <div
+                class="dropdown-menu"
                 :class="{ 'is-opened-top': !isListInViewportVertically }"
-                v-show="isActive && (visibleData.length > 0 || hasEmptySlot)"
+                v-show="isActive && (data.length > 0 || hasEmptySlot || hasHeaderSlot)"
                 ref="dropdown">
-                <div class="dropdown-content">
-                    <a v-for="(option, index) in visibleData"
+                <div class="dropdown-content" v-show="isActive">
+                    <div
+                        v-if="hasHeaderSlot"
+                        class="dropdown-item">
+                        <slot name="header"/>
+                    </div>
+                    <a
+                        v-for="(option, index) in data"
                         :key="index"
                         class="dropdown-item"
                         :class="{ 'is-hovered': option === hovered }"
                         @click="setSelected(option)">
 
-                        <slot v-if="hasDefaultSlot" :option="option" :index="index"></slot>
-                        <span v-else v-html="getValue(option, true)"></span>
+                        <slot
+                            v-if="hasDefaultSlot"
+                            :option="option"
+                            :index="index"
+                        />
+                        <span v-else>
+                            {{ getValue(option, true) }}
+                        </span>
                     </a>
-                    <div v-if="data.length > maxResults"
+                    <div
+                        v-if="data.length === 0 && hasEmptySlot"
                         class="dropdown-item is-disabled">
-                        &hellip;
-                    </div>
-                    <div v-else-if="visibleData.length === 0"
-                        class="dropdown-item is-disabled">
-                        <slot name="empty"></slot>
+                        <slot name="empty"/>
                     </div>
                 </div>
             </div>
@@ -48,29 +60,30 @@
 </template>
 
 <script>
-    import { getValueByPath, escapeRegExpChars } from '../../utils/helpers'
+    import { getValueByPath } from '../../utils/helpers'
     import FormElementMixin from '../../utils/FormElementMixin'
-    import Input from '../input'
+    import Input from '../input/Input'
 
     export default {
-        name: 'bAutocomplete',
-        inheritAttrs: false,
-        mixins: [FormElementMixin],
+        name: 'BAutocomplete',
         components: {
             [Input.name]: Input
         },
+        mixins: [FormElementMixin],
+        inheritAttrs: false,
         props: {
             value: [Number, String],
-            data: Array,
+            data: {
+                type: Array,
+                default: () => []
+            },
             field: {
                 type: String,
                 default: 'value'
             },
-            maxResults: {
-                type: [Number, String],
-                default: 6
-            },
-            keepFirst: Boolean
+            keepFirst: Boolean,
+            clearOnSelect: Boolean,
+            openOnFocus: Boolean
         },
         data() {
             return {
@@ -79,6 +92,7 @@
                 isActive: false,
                 newValue: this.value,
                 isListInViewportVertically: true,
+                hasFocus: false,
                 _isAutocomplete: true,
                 _elementRef: 'input'
             }
@@ -90,7 +104,7 @@
              */
             whiteList() {
                 const whiteList = []
-                whiteList.push(this.$refs.input)
+                whiteList.push(this.$refs.input.$el.querySelector('input'))
                 whiteList.push(this.$refs.dropdown)
                 // Add all chidren from dropdown
                 if (this.$refs.dropdown !== undefined) {
@@ -101,15 +115,6 @@
                 }
 
                 return whiteList
-            },
-
-            /**
-             * Splitted data depending on maxResults.
-             */
-            visibleData() {
-                return this.data.length <= this.maxResults
-                    ? this.data
-                    : this.data.slice(0, this.maxResults)
             },
 
             /**
@@ -124,6 +129,13 @@
              */
             hasEmptySlot() {
                 return !!this.$slots.empty
+            },
+
+            /**
+             * Check if exists "header" slot
+             */
+            hasHeaderSlot() {
+                return !!this.$slots.header
             }
         },
         watch: {
@@ -147,26 +159,19 @@
              * When updating input's value
              *   1. Emit changes
              *   2. If value isn't the same as selected, set null
-             *   3. Select first option if "keep-first"
-             *   4. Close dropdown if value is clear or else open it
+             *   3. Close dropdown if value is clear or else open it
              */
             newValue(value) {
                 this.$emit('input', value)
-
                 // Check if selected is invalid
-                if (this.getValue(this.selected) !== value) this.setSelected(null, false)
-
-                // Keep first option always pre-selected
-                if (this.keepFirst && this.visibleData.length) {
-                    this.$nextTick(() => {
-                        if (this.hovered !== this.visibleData[0]) {
-                            this.setHovered(this.visibleData[0])
-                        }
-                    })
+                const currentValue = this.getValue(this.selected)
+                if (currentValue && currentValue !== value) {
+                    this.setSelected(null, false)
                 }
-
                 // Close dropdown if input is clear or else open it
-                this.isActive = !!value
+                if (this.hasFocus && (!this.openOnFocus || value)) {
+                    this.isActive = !!value
+                }
             },
 
             /**
@@ -177,6 +182,16 @@
             value(value) {
                 this.newValue = value
                 !this.isValid && this.$refs.input.checkHtml5Validity()
+            },
+
+            /**
+             * Select first option if "keep-first
+             */
+            data(value) {
+                // Keep first option always pre-selected
+                if (this.keepFirst) {
+                    this.selectFirstOption(value)
+                }
             }
         },
         methods: {
@@ -199,9 +214,25 @@
                 this.selected = option
                 this.$emit('select', this.selected)
                 if (this.selected !== null) {
-                    this.newValue = this.getValue(this.selected)
+                    this.newValue = this.clearOnSelect ? '' : this.getValue(this.selected)
                 }
                 closeDropdown && this.$nextTick(() => { this.isActive = false })
+            },
+
+            /**
+             * Select first option
+             */
+            selectFirstOption(options) {
+                this.$nextTick(() => {
+                    if (options.length) {
+                        // If has visible data or open on focus, keep updating the hovered
+                        if (this.openOnFocus || (this.newValue !== '' && this.hovered !== options[0])) {
+                            this.setHovered(options[0])
+                        }
+                    } else {
+                        this.setHovered(null)
+                    }
+                })
             },
 
             /**
@@ -236,21 +267,13 @@
             /**
              * Return display text for the input.
              * If object, get value from path, or else just the value.
-             * If hightlight, find the text with regex and make bold.
              */
-            getValue(option, isHighlight = false) {
+            getValue(option) {
                 if (!option) return
 
-                const value = typeof option === 'object'
+                return typeof option === 'object'
                     ? getValueByPath(option, this.field)
                     : option
-
-                const escapedValue = escapeRegExpChars(this.newValue)
-                const regex = new RegExp(`(${escapedValue})`, 'gi')
-
-                return isHighlight
-                    ? value.replace(regex, '<b>$1</b>')
-                    : value
             },
 
             /**
@@ -259,6 +282,12 @@
              */
             calcDropdownInViewportVertical() {
                 this.$nextTick(() => {
+                    /**
+                     * this.$refs.dropdown may be undefined
+                     * when Autocomplete is conditional rendered
+                     */
+                    if (this.$refs.dropdown === undefined) return
+
                     const rect = this.$refs.dropdown.getBoundingClientRect()
 
                     this.isListInViewportVertically = (
@@ -276,11 +305,29 @@
             keyArrows(direction) {
                 const sum = direction === 'down' ? 1 : -1
                 if (this.isActive) {
-                    let index = this.visibleData.indexOf(this.hovered) + sum
-                    index = index > this.visibleData.length - 1 ? 0 : index
-                    index = index < 0 ? this.visibleData.length - 1 : index
+                    let index = this.data.indexOf(this.hovered) + sum
+                    index = index > this.data.length - 1 ? this.data.length : index
+                    index = index < 0 ? 0 : index
 
-                    this.setHovered(this.visibleData[index])
+                    this.setHovered(this.data[index])
+
+                    const list = this.$refs.dropdown.querySelector('.dropdown-content')
+                    const element = list.querySelectorAll('a.dropdown-item:not(.is-disabled)')[index]
+
+                    if (!element) return
+
+                    const visMin = list.scrollTop
+                    const visMax = list.scrollTop + list.clientHeight - element.clientHeight
+
+                    if (element.offsetTop < visMin) {
+                        list.scrollTop = element.offsetTop
+                    } else if (element.offsetTop >= visMax) {
+                        list.scrollTop = (
+                            element.offsetTop -
+                            list.clientHeight +
+                            element.clientHeight
+                        )
+                    }
                 } else {
                     this.isActive = true
                 }
@@ -291,8 +338,25 @@
              * If value is the same as selected, select all text.
              */
             focused(event) {
-                if (this.getValue(this.selected) === this.newValue) this.focus()
+                if (this.getValue(this.selected) === this.newValue) {
+                    this.$el.querySelector('input').select()
+                }
+                if (this.openOnFocus) {
+                    this.isActive = true
+                    if (this.keepFirst) {
+                        this.selectFirstOption(this.data)
+                    }
+                }
+                this.hasFocus = true
                 this.$emit('focus', event)
+            },
+
+            /**
+             * Blur listener.
+            */
+            onBlur(event) {
+                this.hasFocus = false
+                this.$emit('blur', event)
             }
         },
         created() {

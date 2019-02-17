@@ -1,67 +1,70 @@
 <template>
-    <div class="control"
-        :class="[iconPosition, {
-            'is-expanded': expanded,
-            'is-loading': loading,
-            'is-clearfix': !hasMessage
-        }]">
-        <input v-if="type !== 'textarea'"
+    <div class="control" :class="rootClasses">
+        <input
+            v-if="type !== 'textarea'"
             ref="input"
             class="input"
-            :class="[statusType, size]"
+            :class="[inputClasses, customClass]"
             :type="newType"
             :autocomplete="newAutocomplete"
-            :value="newValue"
             :maxlength="maxlength"
+            :value="newValue"
             v-bind="$attrs"
-            @input="input"
-            @blur="$emit('blur', $event) && checkHtml5Validity()"
-            @focus="$emit('focus', $event)">
+            @input="onInput"
+            @blur="onBlur"
+            @focus="onFocus">
 
-        <textarea v-else
+        <textarea
+            v-else
             ref="textarea"
             class="textarea"
-            :class="[statusType, size]"
-            :value="newValue"
+            :class="[inputClasses, customClass]"
             :maxlength="maxlength"
+            :value="newValue"
             v-bind="$attrs"
-            @input="input"
-            @blur="$emit('blur', $event) && checkHtml5Validity()"
-            @focus="$emit('focus', $event)">
-        </textarea>
+            @input="onInput"
+            @blur="onBlur"
+            @focus="onFocus"/>
 
-        <b-icon v-if="icon"
+        <b-icon
+            v-if="icon"
             class="is-left"
             :icon="icon"
             :pack="iconPack"
-            :size="size">
-        </b-icon>
+            :size="iconSize"/>
 
-        <b-icon v-if="!loading && (passwordReveal || statusType)"
+        <b-icon
+            v-if="!loading && (passwordReveal || statusType)"
             class="is-right"
-            :class="[!passwordReveal ? statusType : null, { 'is-primary is-clickable': passwordReveal }]"
+            :class="{ 'is-clickable': passwordReveal }"
             :icon="passwordReveal ? passwordVisibleIcon : statusTypeIcon"
-            :size="size"
+            :pack="iconPack"
+            :size="iconSize"
+            :type="!passwordReveal ? statusType : 'is-primary'"
             both
-            @click.native="togglePasswordVisibility">
-        </b-icon>
+            @click.native="togglePasswordVisibility"/>
 
-        <small class="help counter" v-if="maxlength && hasCounter">{{ valueLength }} / {{ maxlength }}</small>
+        <small
+            v-if="maxlength && hasCounter && type !== 'number'"
+            class="help counter"
+            :class="{ 'is-invisible': !isFocused }">
+            {{ valueLength }} / {{ maxlength }}
+        </small>
     </div>
 </template>
 
 <script>
-    import Icon from '../icon'
+    import Icon from '../icon/Icon'
     import config from '../../utils/config'
     import FormElementMixin from '../../utils/FormElementMixin'
 
     export default {
-        name: 'bInput',
-        inheritAttrs: false,
-        mixins: [FormElementMixin],
+        name: 'BInput',
         components: {
             [Icon.name]: Icon
         },
+        mixins: [FormElementMixin],
+        inheritAttrs: false,
         props: {
             value: [Number, String],
             type: {
@@ -71,7 +74,11 @@
             passwordReveal: Boolean,
             hasCounter: {
                 type: Boolean,
-                default: true
+                default: () => config.defaultInputHasCounter
+            },
+            customClass: {
+                type: String,
+                default: ''
             }
         },
         data() {
@@ -86,9 +93,24 @@
             }
         },
         computed: {
-            /**
-             * Check if have any icon in the right side.
-             */
+            rootClasses() {
+                return [
+                    this.iconPosition,
+                    this.size,
+                    {
+                        'is-expanded': this.expanded,
+                        'is-loading': this.loading,
+                        'is-clearfix': !this.hasMessage
+                    }
+                ]
+            },
+            inputClasses() {
+                return [
+                    this.statusType,
+                    this.size,
+                    { 'is-rounded': this.rounded }
+                ]
+            },
             hasIconRight() {
                 return this.passwordReveal || this.loading || this.statusType
             },
@@ -111,10 +133,10 @@
              */
             statusTypeIcon() {
                 switch (this.statusType) {
-                    case 'is-success': return 'done'
-                    case 'is-danger': return 'error'
-                    case 'is-info': return 'info'
-                    case 'is-warning': return 'warning'
+                    case 'is-success': return 'check'
+                    case 'is-danger': return 'alert-circle'
+                    case 'is-info': return 'information'
+                    case 'is-warning': return 'alert'
                 }
             },
 
@@ -122,20 +144,25 @@
              * Check if have any message prop from parent if it's a Field.
              */
             hasMessage() {
-                return this.$parent.$data._isField && this.$parent.newMessage
+                return !!this.statusMessage
             },
 
             /**
              * Current password-reveal icon name.
              */
             passwordVisibleIcon() {
-                return !this.isPasswordVisible ? 'visibility' : 'visibility_off'
+                return !this.isPasswordVisible ? 'eye' : 'eye-off'
             },
             /**
              * Get value length
              */
             valueLength() {
-                return this.newValue ? this.newValue.length : 0
+                if (typeof this.newValue === 'string') {
+                    return this.newValue.length
+                } else if (typeof this.newValue === 'number') {
+                    return this.newValue.toString().length
+                }
+                return 0
             }
         },
         watch: {
@@ -146,26 +173,18 @@
              */
             value(value) {
                 this.newValue = value
+            },
+
+            /**
+             * Update user's v-model and validate again whenever
+             * internal value is changed.
+             */
+            newValue(value) {
+                this.$emit('input', value)
                 !this.isValid && this.checkHtml5Validity()
             }
         },
         methods: {
-            /**
-             * Input's input listener.
-             *
-             *   1. Emit input event to update the user v-model.
-             *   2. If it's invalid, validate again.
-             *
-             * We're using value instead of v-model because
-             * v-model cannot be binded with a dynamic type input.
-             */
-            input(event) {
-                const value = event.target.value
-                this.newValue = value
-                this.$emit('input', value)
-                !this.isValid && this.checkHtml5Validity()
-            },
-
             /**
              * Toggle the visibility of a password-reveal input
              * by changing the type and focus the input right away.
@@ -177,6 +196,14 @@
                 this.$nextTick(() => {
                     this.$refs.input.focus()
                 })
+            },
+
+            /**
+             * Input's 'input' event listener, 'nextTick' is used to prevent event firing
+             * before ui update, helps when using masks (Cleavejs and potentially others).
+             */
+            onInput(event) {
+                this.$nextTick(() => { this.newValue = event.target.value })
             }
         }
     }

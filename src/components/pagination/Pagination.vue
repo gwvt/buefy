@@ -1,38 +1,80 @@
 <template>
-    <div class="pagination" :class="[order, size, { 'is-simple': simple }]">
-        <a role="button" href="#" class="pagination-previous" @click.prevent="prev"  :disabled="!hasPrev">
-            <b-icon icon="chevron_left" both></b-icon>
+    <div class="pagination" :class="rootClasses">
+        <a
+            role="button"
+            href="#"
+            class="pagination-previous"
+            :disabled="!hasPrev"
+            @click.prevent="prev">
+            <b-icon
+                icon="chevron-left"
+                :pack="iconPack"
+                both/>
         </a>
-        <a role="button" href="#" class="pagination-next" @click.prevent="next" :disabled="!hasNext">
-            <b-icon icon="chevron_right" both></b-icon>
+        <a
+            role="button"
+            href="#"
+            class="pagination-next"
+            :disabled="!hasNext"
+            @click.prevent="next">
+            <b-icon
+                icon="chevron-right"
+                :pack="iconPack"
+                both/>
         </a>
         <ul class="pagination-list" v-if="!simple">
             <!--First-->
-            <li v-if="hasFirst"><a role="button" href="#" class="pagination-link" @click.prevent="first">1</a></li>
+            <li v-if="hasFirst">
+                <a
+                    role="button"
+                    href="#"
+                    class="pagination-link"
+                    @click.prevent="first">
+                    1
+                </a>
+            </li>
             <li v-if="hasFirstEllipsis"><span class="pagination-ellipsis">&hellip;</span></li>
 
             <!--Pages-->
             <li v-for="page in pagesInRange" :key="page.number">
-                <a role="button" href="#" class="pagination-link" @click.prevent="page.click" :class="{ 'is-current': page.isCurrent }">
+                <a
+                    role="button"
+                    href="#"
+                    class="pagination-link"
+                    :class="{ 'is-current': page.isCurrent }"
+                    @click.prevent="page.click">
                     {{ page.number }}
                 </a>
             </li>
 
             <!--Last-->
             <li v-if="hasLastEllipsis"><span class="pagination-ellipsis">&hellip;</span></li>
-            <li v-if="hasLast"><a role="button" href="#" class="pagination-link" @click.prevent="last">{{ pageCount }}</a></li>
+            <li v-if="hasLast">
+                <a
+                    role="button"
+                    href="#"
+                    class="pagination-link"
+                    @click.prevent="last">
+                    {{ pageCount }}
+                </a>
+            </li>
         </ul>
         <small class="info" v-if="simple">
-            {{ firstItem }}-{{ current * perPage }} / {{ total }}
+            <template v-if="perPage == 1">
+                {{ firstItem }} / {{ total }}
+            </template>
+            <template v-else>
+                {{ firstItem }}-{{ Math.min(current * perPage, total) }} / {{ total }}
+            </template>
         </small>
     </div>
 </template>
 
 <script>
-    import Icon from '../icon'
+    import Icon from '../icon/Icon'
 
     export default {
-        name: 'bPagination',
+        name: 'BPagination',
         components: {
             [Icon.name]: Icon
         },
@@ -48,9 +90,22 @@
             },
             size: String,
             simple: Boolean,
-            order: String
+            rounded: Boolean,
+            order: String,
+            iconPack: String
         },
         computed: {
+            rootClasses() {
+                return [
+                    this.order,
+                    this.size,
+                    {
+                        'is-simple': this.simple,
+                        'is-rounded': this.rounded
+                    }
+                ]
+            },
+
             /**
              * Total page size (count).
              */
@@ -124,6 +179,7 @@
                         number: i,
                         isCurrent: this.current === i,
                         click: (event) => {
+                            if (this.current === i) return
                             this.$emit('change', i)
                             this.$emit('update:current', i)
 

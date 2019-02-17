@@ -11,14 +11,22 @@ import hljs from 'highlight.js'
 
 import ApiView from './components/ApiView'
 import CodeView from './components/CodeView'
+import Example from './components/Example'
 
 Vue.config.productionTip = false
 
 global.Promise = Bluebird
 
 Vue.prototype.$http = Axios
+Vue.prototype.$eventHub = new Vue()
 
-Vue.use(Buefy)
+Vue.use(Buefy, {
+    // defaultModalScroll: 'keep'
+    // defaultIconPack: 'fa',
+    // defaultSnackbarDuration: 999999,
+    // defaultToastDuration: 999999
+})
+
 Vue.use(VueProgressBar, {
     color: '#7957d5',
     failedColor: '#ff3860',
@@ -33,6 +41,7 @@ Vue.use(VueAnalytics, {
 })
 Vue.component('ApiView', ApiView)
 Vue.component('CodeView', CodeView)
+Vue.component('Example', Example)
 
 Vue.directive('highlight', {
     deep: true,
@@ -80,9 +89,15 @@ Vue.filter('pre', (text) => {
 })
 
 /* eslint-disable no-new */
-new Vue({
-    el: '#app',
+const root = new Vue({
     router,
-    template: '<App/>',
-    components: { App }
+    components: { App },
+    mounted() {
+        document.dispatchEvent(new Event('render-event'))
+    },
+    template: '<App/>'
+})
+
+document.addEventListener('DOMContentLoaded', function () {
+    root.$mount('#app')
 })

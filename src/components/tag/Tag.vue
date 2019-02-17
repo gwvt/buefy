@@ -1,42 +1,57 @@
 <template>
     <div v-if="attached && closable" class="tags has-addons">
-        <span class="tag"
+        <span
+            class="tag"
             :class="[type, size, { 'is-rounded': rounded }]">
-
-            <slot></slot>
+            <span :class="{ 'has-ellipsis': ellipsis }">
+                <slot/>
+            </span>
         </span>
-        <a class="tag is-delete"
-            tabindex="0"
+        <a
+            class="tag is-delete"
             role="button"
+            :tabindex="tabstop ? 0 : false"
+            :disabled="disabled"
             :class="[size, { 'is-rounded': rounded }]"
             @click="close()"
-            @keyup.delete.prevent="close()">
-        </a>
+            @keyup.delete.prevent="close()"
+        />
     </div>
-    <span v-else
+    <span
+        v-else
         class="tag"
         :class="[type, size, { 'is-rounded': rounded }]">
+        <span :class="{ 'has-ellipsis': ellipsis }">
+            <slot/>
+        </span>
 
-        <slot></slot>
-
-        <button v-if="closable"
-            type="button"
+        <a
+            v-if="closable"
+            role="button"
             class="delete is-small"
+            :disabled="disabled"
+            :tabindex="tabstop ? 0 : false"
             @click="close()"
-            @keyup.delete.prevent="close()">
-        </button>
+            @keyup.delete.prevent="close()"
+        />
     </span>
 </template>
 
 <script>
     export default {
-        name: 'bTag',
+        name: 'BTag',
         props: {
             attached: Boolean,
             closable: Boolean,
             type: String,
             size: String,
-            rounded: Boolean
+            rounded: Boolean,
+            disabled: Boolean,
+            ellipsis: Boolean,
+            tabstop: {
+                type: Boolean,
+                default: true
+            }
         },
         methods: {
             /**
@@ -44,6 +59,8 @@
              * or delete key is pressed.
              */
             close() {
+                if (this.disabled) return
+
                 this.$emit('close')
             }
         }
